@@ -361,7 +361,7 @@ function ShakeSection() {
         </button>
       </div>
       <p className="muted small">Com isso ligado, sacudir o celular com força abre a tela de novo lançamento na hora, de onde você estiver no app.</p>
-      <p className="muted small">No celular, com a tela do app aberta (vale estar em segundo plano também), um sacolejo rápido já abre o formulário. Você escolhe Saída ou Entrada lá dentro.</p>
+      <p className="muted small">Precisa estar com esta aba aberta e na tela: com o celular bloqueado ou outro app na frente, o sacolejo não é detectado.</p>
       {msg && (
         <p className="result result-ok" role="status">
           {msg}
