@@ -94,10 +94,9 @@ main { display: grid; gap: 14px; }
 .badge { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: var(--field); color: var(--muted-2); border: 1px solid var(--border); font-weight: 400; }
 .badge-ok { color: var(--pos); border-color: color-mix(in srgb, var(--pos) 35%, transparent); background: color-mix(in srgb, var(--pos) 10%, transparent); }
 
-.switch { flex: none; width: 48px; height: 28px; border-radius: 999px; border: 1px solid var(--border); background: var(--field); padding: 2px; cursor: pointer; display: flex; align-items: center; transition: background 0.15s ease, border-color 0.15s ease; }
-.switch-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--muted-2); transition: transform 0.15s ease, background 0.15s ease; }
-.switch.on { background: color-mix(in srgb, var(--pos) 22%, transparent); border-color: color-mix(in srgb, var(--pos) 45%, transparent); }
-.switch.on .switch-thumb { transform: translateX(20px); background: var(--pos); }
+.shake-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.shake-steps li { display: grid; gap: 6px; padding: 14px; border-radius: 12px; background: var(--field); border: 1px solid var(--border); }
+.shake-steps strong { font-size: 0.9rem; }
 
 /* ---------- Botões, chips ---------- */
 .btn {

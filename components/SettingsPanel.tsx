@@ -13,7 +13,6 @@ import { GeminiSection } from "./GeminiSection";
 import { ImportSection } from "./ImportSection";
 import { matchesMyName } from "@/lib/importing";
 import { useAiSettings } from "@/lib/aiSettings";
-import { needsMotionPermission, requestMotionPermission, setShakeEnabled, shakeEnabled } from "@/lib/useShake";
 
 /** Login e sincronização (vazio em modo local). */
 export type AccountInfo = { enabled: boolean; email?: string; sync: SyncState; onSignOut: () => void; onPull: () => Promise<boolean> };
@@ -31,11 +30,11 @@ type Props = {
 
 const WS_NAME: Record<Workspace, string> = { pf: "Finanças PF", pj: "Finanças PJ" };
 
-type Section = "conta" | "contas" | "importar" | "nomes" | "gemini" | "cambio" | "categorias" | "backup" | "agitar";
+type Section = "conta" | "contas" | "importar" | "nomes" | "gemini" | "cambio" | "categorias" | "backup" | "toque";
 
 const SECTIONS: { id: Section; title: string; hint: string; icon: IconName }[] = [
   { id: "conta", title: "Meu login e sincronização", hint: "E-mail, sair e sincronizar entre aparelhos", icon: "lock" },
-  { id: "agitar", title: "Agitar para lançar", hint: "Sacuda o celular para abrir um lançamento na hora", icon: "shake" },
+  { id: "toque", title: "Toque traseiro: lançar na hora", hint: "Dê um duplo toque nas costas do iPhone para abrir um lançamento", icon: "shake" },
   { id: "contas", title: "Contas, bancos e saldo do caixa", hint: "Crie contas e informe o saldo do dia 01 de cada mês", icon: "list" },
   { id: "importar", title: "Importar extrato", hint: "Envie CSV, OFX ou PDF do banco, revise e escolha categorias", icon: "upload" },
   { id: "nomes", title: "Meu nome (transferências)", hint: "Para reconhecer Pix e TED entre as suas contas", icon: "user" },
@@ -325,48 +324,58 @@ const SYNC_TEXT: Record<SyncState, string> = {
   error: "Não consegui salvar na nuvem agora (sem conexão?). Seus dados estão salvos neste aparelho e serão enviados quando voltar.",
 };
 
-/* ---------------- Agitar para lançar ---------------- */
+/* ---------------- Toque traseiro: lançar na hora ---------------- */
 
-function ShakeSection() {
-  const [on, setOn] = useState(false);
-  const [msg, setMsg] = useState("");
+function BackTapSection() {
+  const [link, setLink] = useState("");
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => setOn(shakeEnabled()), []);
-
-  async function toggle() {
-    if (on) {
-      setShakeEnabled(false);
-      setOn(false);
-      setMsg("");
-      return;
+  useEffect(() => {
+    try {
+      setLink(`${window.location.origin}/?lancar=1`);
+    } catch {
+      /* ignore */
     }
-    if (needsMotionPermission()) {
-      const granted = await requestMotionPermission();
-      if (!granted) {
-        setMsg("O iPhone não liberou o acesso ao movimento. Vá em Ajustes do iPhone › Safari › Movimento e Orientação e tente de novo.");
-        return;
-      }
+  }, []);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      /* o iPhone pode negar fora de um toque direto; o link também aparece selecionável abaixo */
     }
-    setShakeEnabled(true);
-    setOn(true);
-    setMsg("Pronto! Agora é só sacudir o celular para abrir um lançamento novo.");
   }
 
   return (
-    <section className="panel" aria-labelledby="shake-h">
-      <div className="panel-head">
-        <h2 id="shake-h">Agitar para lançar</h2>
-        <button className={`switch ${on ? "on" : ""}`} role="switch" aria-checked={on} onClick={toggle} aria-label="Agitar para lançar">
-          <span className="switch-thumb" aria-hidden="true" />
-        </button>
-      </div>
-      <p className="muted small">Com isso ligado, sacudir o celular com força abre a tela de novo lançamento na hora, de onde você estiver no app.</p>
-      <p className="muted small">Precisa estar com esta aba aberta e na tela: com o celular bloqueado ou outro app na frente, o sacolejo não é detectado.</p>
-      {msg && (
-        <p className="result result-ok" role="status">
-          {msg}
-        </p>
-      )}
+    <section className="panel" aria-labelledby="tap-h">
+      <h2 id="tap-h">Toque traseiro: lançar na hora</h2>
+      <p className="muted small">
+        O iPhone tem um gesto de bater duas vezes de leve nas costas do aparelho para disparar uma ação (em Acessibilidade). Dá para usar esse gesto para abrir direto a tela de novo lançamento,
+        mesmo com o app fechado. Isso é configurado no próprio iPhone, em dois passos:
+      </p>
+
+      <ol className="shake-steps">
+        <li>
+          <strong>1. Crie um Atalho com este link</strong>
+          <p className="muted small">Abra o app Atalhos → toque em + → Adicionar Ação → procure e escolha "Abrir URLs" → cole o link abaixo. Dê um nome, por exemplo "Lançamento".</p>
+          <div className="row-actions">
+            <input className="search" style={{ flex: 1 }} readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link do lançamento rápido" />
+            <button type="button" className="btn" onClick={copyLink} disabled={!link}>
+              {copied ? "Copiado!" : "Copiar link"}
+            </button>
+          </div>
+        </li>
+        <li>
+          <strong>2. Ligue o Toque Traseiro</strong>
+          <p className="muted small">
+            Ajustes do iPhone → Acessibilidade → Toque → Toque Traseiro → escolha <b>Toque Duplo</b> (ou Toque Triplo) → selecione o atalho "Lançamento" que você criou.
+          </p>
+        </li>
+      </ol>
+
+      <p className="muted small">Pronto: um toque duplo nas costas do iPhone abre o Financeiro direto na tela de novo lançamento, de onde você estiver.</p>
     </section>
   );
 }
@@ -535,7 +544,7 @@ export function SettingsPanel({ state, root, ws, dispatch, onRestore, rate, acco
       )}
       {section === "backup" && <BackupSection root={root} ws={ws} dispatch={dispatch} onRestore={onRestore} />}
       {section === "conta" && <AccountSection account={account} />}
-      {section === "agitar" && <ShakeSection />}
+      {section === "toque" && <BackTapSection />}
     </div>
   );
 }

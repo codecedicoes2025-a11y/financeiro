@@ -23,6 +23,20 @@ export default function Shell() {
   const [ws, setWs] = useState<Workspace | null>(null);
   const [last, setLast] = useState<Workspace | null>(null);
 
+  // Link "?lancar=1" (ex.: atalho de Toque Traseiro do iPhone): abre direto a folha de novo lançamento,
+  // escolhendo sozinho o livro usado por último, sem precisar tocar na tela de PF/PJ.
+  const [quickAdd, setQuickAdd] = useState(false);
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get("lancar")) {
+        setQuickAdd(true);
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const v = localStorage.getItem(WS_KEY);
@@ -31,6 +45,10 @@ export default function Shell() {
       /* ignore */
     }
   }, []);
+
+  useEffect(() => {
+    if (quickAdd && !ws && last) setWs(last);
+  }, [quickAdd, ws, last]);
 
   const pick = useCallback((next: Workspace) => {
     setWs(next);
@@ -102,6 +120,7 @@ export default function Shell() {
       onSwitchWorkspace={() => setWs(null)}
       onRestore={data.replaceRoot}
       account={{ enabled: cloudEnabled, email: auth.user?.email ?? undefined, sync: data.sync, onSignOut: signOut, onPull: data.pullNow }}
+      openQuickAdd={quickAdd}
     />
   );
 }

@@ -7,7 +7,6 @@ import { brl, cashBalance, entriesIn, monthlySeries, signedBrl, summarize, type 
 import { combineBooks, viewOf, type Action, type RootAction } from "@/lib/store";
 import type { Account, Category, Currency, Entry, EntryType, Root, Workspace } from "@/lib/types";
 import { useLiveRate } from "@/lib/useLiveRate";
-import { useShake, useShakeSetting } from "@/lib/useShake";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { CategoryEntriesDialog } from "./CategoryEntriesDialog";
 import { EntryDialog } from "./EntryDialog";
@@ -41,11 +40,13 @@ export type AppProps = {
   onSwitchWorkspace: () => void;
   onRestore: (raw: unknown) => void;
   account: AccountInfo;
+  /** true quando chegou por um link "?lancar=1" (ex.: Toque Traseiro do iPhone): abre direto o lançamento rápido. */
+  openQuickAdd?: boolean;
 };
 
 const WS_LABEL: Record<Workspace, string> = { pf: "Finanças PF", pj: "Finanças PJ" };
 
-export default function App({ root, dispatchRoot, ws, onSwitchWorkspace, onRestore, account }: AppProps) {
+export default function App({ root, dispatchRoot, ws, onSwitchWorkspace, onRestore, account, openQuickAdd }: AppProps) {
   // As telas trabalham com UM livro por vez (o aberto); as ações vão para ele.
   const state = useMemo(() => viewOf(root, ws), [root, ws]);
   const dispatch = useCallback((a: Action) => dispatchRoot({ type: "scoped", ws, action: a }), [dispatchRoot, ws]);
@@ -77,10 +78,11 @@ export default function App({ root, dispatchRoot, ws, onSwitchWorkspace, onResto
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Entry | null>(null);
 
-  // Agitar o celular abre a folha de novo lançamento na hora, de qualquer tela.
+  // Chegou por "?lancar=1" (ex.: atalho de Toque Traseiro do iPhone): abre a folha de novo lançamento na hora.
   const [quickAdd, setQuickAdd] = useState(false);
-  const shakeOn = useShakeSetting();
-  useShake(shakeOn, () => setQuickAdd(true));
+  useEffect(() => {
+    if (openQuickAdd) setQuickAdd(true);
+  }, [openQuickAdd]);
 
   // Virada de mês: se o período é "Este mês" e o mês mudou (app aberto de um dia para o outro), recomeça no mês novo.
   useEffect(() => {
@@ -396,7 +398,7 @@ type QuickAddProps = {
   onCreateCategory: (name: string, color: string, kind: EntryType) => string;
 };
 
-/** Folha aberta pelo gesto de agitar o celular: lançamento novo na hora, de qualquer tela. */
+/** Folha aberta pelo atalho de Toque Traseiro (ou pelo botão "+ Novo"): lançamento novo na hora. */
 function QuickAddDialog({ open, accounts, categories, onClose, onSubmit, onCreateAccount, onCreateCategory }: QuickAddProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
