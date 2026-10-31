@@ -57,7 +57,11 @@ export async function requestMotionPermission(): Promise<boolean> {
   }
 }
 
-const THRESHOLD = 18; // m/s² de variação para contar como "agitada".
+// Soma dos módulos da aceleração (m/s² em cada eixo) entre duas leituras ~100ms
+// separadas. Comparar leituras bem espaçadas é o que torna o gesto sensível:
+// comparar leituras consecutivas (a cada ~16ms) nunca acumula diferença suficiente.
+const THRESHOLD = 12;
+const SAMPLE_MS = 100;
 const COOLDOWN_MS = 1500;
 
 /**
@@ -65,7 +69,7 @@ const COOLDOWN_MS = 1500;
  * lanterna no Motorola). Só ouve o sensor quando `enabled` é true.
  */
 export function useShake(enabled: boolean, onShake: () => void) {
-  const last = useRef(0);
+  const lastSampleAt = useRef(0);
   const lastAccel = useRef<{ x: number; y: number; z: number } | null>(null);
   const cooldownUntil = useRef(0);
   const onShakeRef = useRef(onShake);
@@ -75,16 +79,17 @@ export function useShake(enabled: boolean, onShake: () => void) {
     if (!enabled || typeof window === "undefined") return;
 
     function handle(e: DeviceMotionEvent) {
-      const a = e.accelerationIncludingGravity;
-      if (!a || a.x === null || a.y === null || a.z === null) return;
+      // Alguns Android só preenchem `acceleration` (sem gravidade); usamos o que vier.
+      const a = e.accelerationIncludingGravity?.x !== null && e.accelerationIncludingGravity?.x !== undefined ? e.accelerationIncludingGravity : e.acceleration;
+      if (!a || a.x === null || a.y === null || a.z === null || a.x === undefined) return;
+
       const now = Date.now();
+      if (now - lastSampleAt.current < SAMPLE_MS) return; // só avalia ~10x por segundo
       const prev = lastAccel.current;
+      lastSampleAt.current = now;
       lastAccel.current = { x: a.x, y: a.y, z: a.z };
-      if (!prev || now - last.current < 100) {
-        last.current = now;
-        return;
-      }
-      last.current = now;
+      if (!prev) return;
+
       const delta = Math.abs(a.x - prev.x) + Math.abs(a.y - prev.y) + Math.abs(a.z - prev.z);
       if (delta > THRESHOLD && now > cooldownUntil.current) {
         cooldownUntil.current = now + COOLDOWN_MS;
