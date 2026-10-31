@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Dispatch } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch } from "react";
 import { fmtBR, presetRange, rangeLabel, startOfMonth, today, type Range } from "@/lib/dates";
 import { fmtMoney, uid } from "@/lib/money";
 import { brl, cashBalance, entriesIn, monthlySeries, signedBrl, summarize, type Slice } from "@/lib/stats";
 import { combineBooks, viewOf, type Action, type RootAction } from "@/lib/store";
-import type { Currency, Entry, EntryType, Root, Workspace } from "@/lib/types";
+import type { Account, Category, Currency, Entry, EntryType, Root, Workspace } from "@/lib/types";
 import { useLiveRate } from "@/lib/useLiveRate";
+import { useShake, useShakeSetting } from "@/lib/useShake";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { CategoryEntriesDialog } from "./CategoryEntriesDialog";
 import { EntryDialog } from "./EntryDialog";
@@ -75,6 +76,11 @@ export default function App({ root, dispatchRoot, ws, onSwitchWorkspace, onResto
   const [accountFilter, setAccountFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Entry | null>(null);
+
+  // Agitar o celular abre a folha de novo lançamento na hora, de qualquer tela.
+  const [quickAdd, setQuickAdd] = useState(false);
+  const shakeOn = useShakeSetting();
+  useShake(shakeOn, () => setQuickAdd(true));
 
   // Virada de mês: se o período é "Este mês" e o mês mudou (app aberto de um dia para o outro), recomeça no mês novo.
   useEffect(() => {
@@ -363,6 +369,57 @@ export default function App({ root, dispatchRoot, ws, onSwitchWorkspace, onResto
         onCreateAccount={createAccount}
         onCreateCategory={createCategory}
       />
+
+      <QuickAddDialog
+        open={quickAdd}
+        accounts={state.accounts}
+        categories={state.categories}
+        onClose={() => setQuickAdd(false)}
+        onSubmit={(entry) => {
+          dispatch({ type: "addEntry", entry });
+          setQuickAdd(false);
+        }}
+        onCreateAccount={createAccount}
+        onCreateCategory={createCategory}
+      />
     </>
+  );
+}
+
+type QuickAddProps = {
+  open: boolean;
+  accounts: Account[];
+  categories: Category[];
+  onClose: () => void;
+  onSubmit: (entry: Entry) => void;
+  onCreateAccount: (name: string, currency: Currency) => string;
+  onCreateCategory: (name: string, color: string, kind: EntryType) => string;
+};
+
+/** Folha aberta pelo gesto de agitar o celular: lançamento novo na hora, de qualquer tela. */
+function QuickAddDialog({ open, accounts, categories, onClose, onSubmit, onCreateAccount, onCreateCategory }: QuickAddProps) {
+  const ref = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    else if (!open && d.open) d.close();
+  }, [open]);
+
+  return (
+    <dialog ref={ref} className="sheet" onClose={onClose} onClick={(e) => e.target === ref.current && onClose()} aria-labelledby="quick-h">
+      {open && (
+        <div className="sheet-body">
+          <div className="sheet-head">
+            <h2 id="quick-h">Novo lançamento</h2>
+            <button className="icon-btn" onClick={onClose} aria-label="Fechar">
+              <Icon name="close" />
+            </button>
+          </div>
+          <EntryForm key={open ? "open" : "closed"} accounts={accounts} categories={categories} submitLabel="Lançar" onSubmit={onSubmit} onCreateAccount={onCreateAccount} onCreateCategory={onCreateCategory} onCancel={onClose} />
+        </div>
+      )}
+    </dialog>
   );
 }
